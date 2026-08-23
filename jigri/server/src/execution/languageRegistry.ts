@@ -1,0 +1,198 @@
+export interface LanguageConfig {
+  id: string;
+  name: string;
+  extension: string;
+  monacoLang: string;
+  type: 'compiled' | 'interpreted' | 'web' | 'data';
+  dockerImage: string;
+  compileCommand?: string[];
+  runCommand: string[];
+  defaultCode: string;
+  timeout: number;
+  memoryLimit: string;
+  cpuQuota: number; // Docker CPU quota (e.g. 50000 = 0.5 CPU)
+}
+
+export const languageRegistry: Record<string, LanguageConfig> = {
+  python: {
+    id: 'python',
+    name: 'Python 3.11',
+    extension: '.py',
+    monacoLang: 'python',
+    type: 'interpreted',
+    dockerImage: 'jigri-runner-python:latest',
+    runCommand: ['python3', 'main.py'],
+    defaultCode: `# Python 3.11\nprint("Hello, World!")`,
+    timeout: 15000,
+    memoryLimit: '128m',
+    cpuQuota: 50000,
+  },
+  javascript: {
+    id: 'javascript',
+    name: 'JavaScript (Node 20)',
+    extension: '.js',
+    monacoLang: 'javascript',
+    type: 'interpreted',
+    dockerImage: 'jigri-runner-node:latest',
+    runCommand: ['node', 'main.js'],
+    defaultCode: `// JavaScript\nconsole.log("Hello, World!");`,
+    timeout: 15000,
+    memoryLimit: '128m',
+    cpuQuota: 50000,
+  },
+  typescript: {
+    id: 'typescript',
+    name: 'TypeScript',
+    extension: '.ts',
+    monacoLang: 'typescript',
+    type: 'interpreted',
+    dockerImage: 'jigri-runner-node:latest',
+    runCommand: ['npx', '--yes', 'ts-node', 'main.ts'],
+    defaultCode: `// TypeScript\nconst greeting: string = "Hello, World!";\nconsole.log(greeting);`,
+    timeout: 30000,
+    memoryLimit: '256m',
+    cpuQuota: 50000,
+  },
+  cpp: {
+    id: 'cpp',
+    name: 'C++ 17',
+    extension: '.cpp',
+    monacoLang: 'cpp',
+    type: 'compiled',
+    dockerImage: 'jigri-runner-cpp:latest',
+    compileCommand: ['g++', '-std=c++17', '-O2', '-o', 'main', 'main.cpp'],
+    runCommand: ['./main'],
+    defaultCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}`,
+    timeout: 20000,
+    memoryLimit: '256m',
+    cpuQuota: 50000,
+  },
+  c: {
+    id: 'c',
+    name: 'C 11',
+    extension: '.c',
+    monacoLang: 'c',
+    type: 'compiled',
+    dockerImage: 'jigri-runner-cpp:latest',
+    compileCommand: ['gcc', '-std=c11', '-O2', '-o', 'main', 'main.c'],
+    runCommand: ['./main'],
+    defaultCode: `#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}`,
+    timeout: 20000,
+    memoryLimit: '256m',
+    cpuQuota: 50000,
+  },
+  java: {
+    id: 'java',
+    name: 'Java 21',
+    extension: '.java',
+    monacoLang: 'java',
+    type: 'compiled',
+    dockerImage: 'jigri-runner-java:latest',
+    compileCommand: ['javac', 'Main.java'],
+    runCommand: ['java', 'Main'],
+    defaultCode: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}`,
+    timeout: 30000,
+    memoryLimit: '512m',
+    cpuQuota: 50000,
+  },
+  go: {
+    id: 'go',
+    name: 'Go 1.22',
+    extension: '.go',
+    monacoLang: 'go',
+    type: 'compiled',
+    dockerImage: 'jigri-runner-go:latest',
+    runCommand: ['go', 'run', 'main.go'],
+    defaultCode: `package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}`,
+    timeout: 30000,
+    memoryLimit: '256m',
+    cpuQuota: 50000,
+  },
+  ruby: {
+    id: 'ruby',
+    name: 'Ruby 3.3',
+    extension: '.rb',
+    monacoLang: 'ruby',
+    type: 'interpreted',
+    dockerImage: 'jigri-runner-ruby:latest',
+    runCommand: ['ruby', 'main.rb'],
+    defaultCode: `# Ruby\nputs "Hello, World!"`,
+    timeout: 15000,
+    memoryLimit: '128m',
+    cpuQuota: 50000,
+  },
+  php: {
+    id: 'php',
+    name: 'PHP 8.3',
+    extension: '.php',
+    monacoLang: 'php',
+    type: 'interpreted',
+    dockerImage: 'jigri-runner-php:latest',
+    runCommand: ['php', 'main.php'],
+    defaultCode: `<?php\necho "Hello, World!\\n";`,
+    timeout: 15000,
+    memoryLimit: '128m',
+    cpuQuota: 50000,
+  },
+  rust: {
+    id: 'rust',
+    name: 'Rust 1.78',
+    extension: '.rs',
+    monacoLang: 'rust',
+    type: 'compiled',
+    dockerImage: 'jigri-runner-rust:latest',
+    compileCommand: ['rustc', '-o', 'main', 'main.rs'],
+    runCommand: ['./main'],
+    defaultCode: `fn main() {\n    println!("Hello, World!");\n}`,
+    timeout: 60000,
+    memoryLimit: '512m',
+    cpuQuota: 50000,
+  },
+  bash: {
+    id: 'bash',
+    name: 'Bash',
+    extension: '.sh',
+    monacoLang: 'shell',
+    type: 'interpreted',
+    dockerImage: 'jigri-runner-node:latest',
+    runCommand: ['bash', 'main.sh'],
+    defaultCode: `#!/bin/bash\necho "Hello, World!"`,
+    timeout: 10000,
+    memoryLimit: '64m',
+    cpuQuota: 25000,
+  },
+  html: {
+    id: 'html',
+    name: 'HTML/CSS/JS',
+    extension: '.html',
+    monacoLang: 'html',
+    type: 'web',
+    dockerImage: '',
+    runCommand: [],
+    defaultCode: `<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <title>My Page</title>\n    <style>\n        body { font-family: Arial, sans-serif; padding: 2rem; }\n        h1 { color: #4f46e5; }\n    </style>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n    <p>Welcome to JIGRI!</p>\n    <script>\n        console.log('Hello from JavaScript!');\n    </script>\n</body>\n</html>`,
+    timeout: 0,
+    memoryLimit: '0',
+    cpuQuota: 0,
+  },
+  markdown: {
+    id: 'markdown',
+    name: 'Markdown',
+    extension: '.md',
+    monacoLang: 'markdown',
+    type: 'web',
+    dockerImage: '',
+    runCommand: [],
+    defaultCode: `# Hello World\n\nThis is **JIGRI** — an online coding platform.\n\n## Features\n\n- Online compiler\n- Python notebook\n- 20+ languages\n`,
+    timeout: 0,
+    memoryLimit: '0',
+    cpuQuota: 0,
+  },
+};
+
+export function getLanguage(id: string): LanguageConfig | undefined {
+  return languageRegistry[id];
+}
+
+export function getAllLanguages(): LanguageConfig[] {
+  return Object.values(languageRegistry);
+}

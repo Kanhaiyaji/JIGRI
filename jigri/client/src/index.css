@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    @apply h-full;
+  }
+  
+  body {
+    @apply bg-dark-bg text-gray-200 antialiased;
+  }
+
+  /* Scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dark-border rounded-full border-[3px] border-solid border-dark-bg;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-600;
+  }
+}
+
+@layer utilities {
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+}
+
+/* Notebook markdown styles */
+.markdown-body {
+  @apply text-gray-300 space-y-4 leading-relaxed;
+}
+
+.markdown-body h1, 
+.markdown-body h2, 
+.markdown-body h3, 
+.markdown-body h4, 
+.markdown-body h5, 
+.markdown-body h6 {
+  @apply font-semibold text-white mt-6 mb-4;
+}
+
+.markdown-body h1 { @apply text-2xl border-b border-dark-border pb-2; }
+.markdown-body h2 { @apply text-xl border-b border-dark-border pb-2; }
+.markdown-body h3 { @apply text-lg; }
+
+.markdown-body p { @apply mb-4; }
+.markdown-body a { @apply text-brand-500 hover:underline; }
+.markdown-body ul { @apply list-disc list-inside mb-4 pl-4; }
+.markdown-body ol { @apply list-decimal list-inside mb-4 pl-4; }
+.markdown-body blockquote { @apply border-l-4 border-dark-border pl-4 italic text-gray-400; }
+.markdown-body code { @apply bg-dark-bg px-1.5 py-0.5 rounded text-sm font-mono border border-dark-border; }
+.markdown-body pre code { @apply bg-transparent p-0 border-none; }
+.markdown-body pre { @apply bg-dark-bg p-4 rounded-lg overflow-x-auto border border-dark-border; }
+.markdown-body img { @apply max-w-full h-auto rounded; }
