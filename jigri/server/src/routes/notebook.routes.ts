@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { AuthRequest, authenticate } from '../middleware/auth.middleware.js';
@@ -13,6 +14,13 @@ import {
 const router = Router();
 
 router.use(authenticate);
+
+router.param('id', (req, res, next, id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ error: 'Notebook not found' });
+  }
+  next();
+});
 
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {

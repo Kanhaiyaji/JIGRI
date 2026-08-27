@@ -30,12 +30,10 @@ export default function Notebook() {
 
   // Create or load notebook on mount
   useEffect(() => {
-    if (!id) {
-      // No ID — create a new local notebook without auth required
-      const newId = uuidv4();
-      dispatch(
-        setNotebook({
-          id: newId,
+    if (token) {
+      if (!id) {
+        // Logged-in user without notebook ID -> Create new notebook in MongoDB
+        api.post('/notebooks', {
           title: 'Untitled Notebook',
           cells: [
             {
@@ -44,17 +42,25 @@ export default function Notebook() {
               source: '# Welcome to JIGRI Python Notebook\nprint("Hello, JIGRI!")',
               outputs: [],
               executionCount: null,
-              isRunning: false,
             },
           ],
-        })
-      );
-      navigate(`/notebook/${newId}`, { replace: true });
-      return;
-    }
+        }).then((res) => {
+          const nb = res.data.notebook;
+          dispatch(
+            setNotebook({
+              id: nb._id,
+              title: nb.title,
+              cells: nb.cells.map((c: any) => ({ ...c, isRunning: false })),
+            })
+          );
+          navigate(`/notebook/${nb._id}`, { replace: true });
+        }).catch((err) => {
+          console.error('Failed to create notebook:', err);
+        });
+        return;
+      }
 
-    // Try to load from API if logged in
-    if (token) {
+      // Try to load existing notebook from API
       api.get(`/notebooks/${id}`).then((res) => {
         const nb = res.data.notebook;
         if (nb) {
@@ -67,10 +73,39 @@ export default function Notebook() {
           );
         }
       }).catch(() => {
-        // If not found, create local notebook
+        // If not found or invalid id (e.g. guest UUID in URL), create a new notebook in MongoDB
+        api.post('/notebooks', {
+          title: 'Untitled Notebook',
+          cells: [
+            {
+              id: uuidv4(),
+              type: 'code',
+              source: '# Welcome to JIGRI Python Notebook\nprint("Hello, JIGRI!")',
+              outputs: [],
+              executionCount: null,
+            },
+          ],
+        }).then((res) => {
+          const nb = res.data.notebook;
+          dispatch(
+            setNotebook({
+              id: nb._id,
+              title: nb.title,
+              cells: nb.cells.map((c: any) => ({ ...c, isRunning: false })),
+            })
+          );
+          navigate(`/notebook/${nb._id}`, { replace: true });
+        }).catch((err) => {
+          console.error('Failed to create fallback notebook:', err);
+        });
+      });
+    } else {
+      // Guest mode — local notebook
+      if (!id) {
+        const newId = uuidv4();
         dispatch(
           setNotebook({
-            id,
+            id: newId,
             title: 'Untitled Notebook',
             cells: [
               {
@@ -84,9 +119,10 @@ export default function Notebook() {
             ],
           })
         );
-      });
-    } else {
-      // Guest mode — local notebook
+        navigate(`/notebook/${newId}`, { replace: true });
+        return;
+      }
+
       if (!notebook || notebook.id !== id) {
         dispatch(
           setNotebook({
