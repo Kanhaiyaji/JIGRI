@@ -184,10 +184,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Deploying Backend to **Render**
 1. Create a **Web Service** on Render pointing to the `/server` directory.
-2. Build Command: `npm install && npm run build`
+2. Build Command: `npm install && npm run build && pip install -r requirements.txt`
 3. Start Command: `node dist/index.js`
 4. Add **Environment Variables** (`MONGO_URI`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `CLIENT_URL`, etc.).
 5. Make sure **MongoDB Atlas Network Access** allows `0.0.0.0/0`.
+
 
 ---
 
