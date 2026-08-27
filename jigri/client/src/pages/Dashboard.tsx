@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import api from '../services/api';
 import ProjectCard from '../components/Dashboard/ProjectCard';
 import NotebookCard from '../components/Dashboard/NotebookCard';
+import { parseIpynb } from '../lib/ipynb';
 import {
   LayoutDashboard,
   Terminal,
@@ -19,6 +20,8 @@ import {
   CheckCircle2,
   XCircle,
   Timer,
+  Upload,
+  AlertCircle,
 } from 'lucide-react';
 
 interface Project {
@@ -57,7 +60,9 @@ export default function Dashboard() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -104,6 +109,44 @@ export default function Dashboard() {
     } catch (e) {
       navigate('/notebook');
     }
+  };
+
+  const handleUploadIpynb = (file: File) => {
+    setError(null);
+    if (!file.name.toLowerCase().endsWith('.ipynb') && file.type !== 'application/json') {
+      setError('Please select a valid .ipynb Jupyter Notebook file.');
+      return;
+    }
+
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsed = parseIpynb(content, file.name);
+
+        const res = await api.post('/notebooks', {
+          title: parsed.title,
+          cells: parsed.cells,
+        });
+
+        if (res.data?.notebook?._id) {
+          navigate(`/notebook/${res.data.notebook._id}`);
+        } else {
+          fetchAll();
+        }
+      } catch (err: any) {
+        console.error('Upload notebook error:', err);
+        setError(err.message || 'Failed to parse .ipynb file.');
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.onerror = () => {
+      setError('Failed to read file from disk.');
+      setUploading(false);
+    };
+    reader.readAsText(file);
   };
 
   // Not logged in
@@ -162,6 +205,20 @@ export default function Dashboard() {
 
   return (
     <div className="h-full flex flex-col bg-dark-bg overflow-hidden">
+      {/* Hidden File Input for Dashboard .ipynb Upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".ipynb,application/x-ipynb+json,application/json"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleUploadIpynb(file);
+          e.target.value = '';
+        }}
+        className="hidden"
+        id="dashboard-upload-ipynb-input"
+      />
+
       {/* Header */}
       <div className="shrink-0 border-b border-dark-border bg-dark-bg/80 px-6 py-5">
         <div className="max-w-6xl mx-auto">
@@ -175,7 +232,7 @@ export default function Dashboard() {
                 Welcome back, <span className="text-gray-300 font-medium">{user?.username}</span>
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Link
                 to="/compiler"
                 className="flex items-center gap-2 px-4 py-2 bg-dark-card border border-dark-border rounded-lg text-sm text-gray-300 hover:text-white hover:bg-dark-hover transition-all"
@@ -183,6 +240,19 @@ export default function Dashboard() {
                 <Terminal className="w-3.5 h-3.5" />
                 New Code
               </Link>
+              <button
+                id="dashboard-upload-ipynb-btn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 px-3.5 py-2 bg-dark-card border border-dark-border hover:border-cyan-500/50 rounded-lg text-sm text-gray-300 hover:text-white transition-all shadow-sm"
+              >
+                {uploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5 text-cyan-400" />
+                )}
+                Upload .ipynb
+              </button>
               <button
                 id="new-notebook-btn"
                 onClick={createNotebook}
@@ -246,7 +316,10 @@ export default function Dashboard() {
               Loading…
             </div>
           ) : error ? (
-            <div className="text-center py-20 text-red-400">{error}</div>
+            <div className="text-center py-20 text-red-400 flex flex-col items-center gap-2">
+              <AlertCircle className="w-6 h-6" />
+              <span>{error}</span>
+            </div>
           ) : (
             <>
               {/* Projects */}
@@ -278,10 +351,25 @@ export default function Dashboard() {
                     <EmptyState
                       icon={<BookOpen className="w-8 h-8" />}
                       title="No notebooks yet"
-                      desc="Create a Python notebook to start your data science workflow."
-                      action={<button id="empty-new-notebook" onClick={createNotebook} className="inline-flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 rounded-lg text-sm text-white font-medium transition-all">
-                        <Plus className="w-4 h-4" /> New Notebook
-                      </button>}
+                      desc="Create a Python notebook or upload an existing .ipynb file."
+                      action={
+                        <div className="flex items-center gap-3">
+                          <button
+                            id="empty-upload-notebook"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-dark-card border border-dark-border hover:border-cyan-500/50 rounded-lg text-sm text-gray-200 font-medium transition-all"
+                          >
+                            <Upload className="w-4 h-4 text-cyan-400" /> Upload .ipynb
+                          </button>
+                          <button
+                            id="empty-new-notebook"
+                            onClick={createNotebook}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 rounded-lg text-sm text-white font-medium transition-all"
+                          >
+                            <Plus className="w-4 h-4" /> New Notebook
+                          </button>
+                        </div>
+                      }
                     />
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
