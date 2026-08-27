@@ -151,7 +151,7 @@ VITE_SUPABASE_ANON_KEY=<your-anon-key>
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/jigri.git
+git clone **https://github.com/your-username/jigri.git
 cd jigri
 ```
 
