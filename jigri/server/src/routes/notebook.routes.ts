@@ -144,9 +144,19 @@ router.post('/:id/cells/:cellId/run', async (req: AuthRequest, res: Response) =>
       return res.status(404).json({ error: 'Notebook not found' });
     }
 
-    const cellIndex = notebook.cells.findIndex((c) => c.id === req.params.cellId);
+    let cellIndex = notebook.cells.findIndex((c) => c.id === req.params.cellId);
     if (cellIndex === -1) {
-      return res.status(404).json({ error: 'Cell not found' });
+      // Cell was created/imported on frontend before auto-save finished -> auto-append to notebook
+      notebook.cells.push({
+        id: req.params.cellId,
+        type: 'code',
+        source: code,
+        outputs: [],
+        executionCount: 0,
+      } as any);
+      cellIndex = notebook.cells.length - 1;
+    } else {
+      notebook.cells[cellIndex].source = code;
     }
 
     const { stdout, stderr, result } = await executeCell(req.userId!, req.params.id, req.params.cellId, code);
@@ -165,6 +175,7 @@ router.post('/:id/cells/:cellId/run', async (req: AuthRequest, res: Response) =>
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
+    console.error('Cell execution error:', error);
     res.status(500).json({ error: 'Failed to execute cell', details: error.message });
   }
 });
@@ -192,7 +203,7 @@ router.post('/:id/run-all', async (req: AuthRequest, res: Response) => {
           cell.executionCount = (cell.executionCount || 0) + 1;
           results.push({ cellId: cell.id, success: true, outputs });
         } catch (err: any) {
-          cell.outputs = [{ type: 'error', data: err.message }] as any;
+          cell.outputs = [{ type: 'error', data: err.message || 'Execution failed' }] as any;
           results.push({ cellId: cell.id, success: false, error: err.message });
           break; // Stop on first error
         }
@@ -202,6 +213,7 @@ router.post('/:id/run-all', async (req: AuthRequest, res: Response) => {
     await notebook.save();
     res.json({ results });
   } catch (error: any) {
+    console.error('Run all error:', error);
     res.status(500).json({ error: 'Failed to run all cells', details: error.message });
   }
 });

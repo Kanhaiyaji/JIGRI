@@ -44,6 +44,71 @@ export interface ExecutionResult {
 
 const MAX_OUTPUT_BYTES = 1024 * 1024; // 1MB
 
+async function runCodeViaPiston(
+  lang: LanguageConfig,
+  code: string,
+  stdin: string,
+  onStdout?: (chunk: string) => void,
+  onStderr?: (chunk: string) => void
+): Promise<ExecutionResult | null> {
+  const pistonLanguageMap: Record<string, { language: string; version: string; file: string }> = {
+    java: { language: 'java', version: '*', file: 'Main.java' },
+    php: { language: 'php', version: '*', file: 'main.php' },
+    cpp: { language: 'cpp', version: '*', file: 'main.cpp' },
+    c: { language: 'c', version: '*', file: 'main.c' },
+    go: { language: 'go', version: '*', file: 'main.go' },
+    rust: { language: 'rust', version: '*', file: 'main.rs' },
+    ruby: { language: 'ruby', version: '*', file: 'main.rb' },
+    python: { language: 'python', version: '*', file: 'main.py' },
+    javascript: { language: 'javascript', version: '*', file: 'main.js' },
+    typescript: { language: 'typescript', version: '*', file: 'main.ts' },
+    bash: { language: 'bash', version: '*', file: 'main.sh' },
+  };
+
+  const mapping = pistonLanguageMap[lang.id];
+  if (!mapping) return null;
+
+  const startTime = Date.now();
+  try {
+    const res = await fetch('https://emkc.org/api/v2/piston/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        language: mapping.language,
+        version: mapping.version,
+        files: [{ name: mapping.file, content: code }],
+        stdin: stdin || '',
+      }),
+    });
+
+    if (!res.ok) return null;
+    const data: any = await res.json();
+
+    let stdout = data.run?.stdout || '';
+    let stderr = data.run?.stderr || '';
+    let exitCode = data.run?.code ?? 0;
+
+    if (data.compile && data.compile.code !== 0) {
+      stderr = data.compile.stderr || data.compile.output || stderr;
+      exitCode = data.compile.code;
+    }
+
+    if (onStdout && stdout) onStdout(stdout);
+    if (onStderr && stderr) onStderr(stderr);
+
+    return {
+      stdout: stdout.slice(0, MAX_OUTPUT_BYTES),
+      stderr: stderr.slice(0, MAX_OUTPUT_BYTES),
+      exitCode,
+      executionTimeMs: Date.now() - startTime,
+      timedOut: false,
+    };
+  } catch (err) {
+    console.warn('[DockerRunner] Piston execution fallback failed:', err);
+    return null;
+  }
+}
+
 export async function runCode(
   lang: LanguageConfig,
   code: string,
@@ -54,15 +119,42 @@ export async function runCode(
   const hasDocker = await checkDockerAvailability();
 
   if (!hasDocker) {
-    return runCodeLocally(lang, code, stdin, onStdout, onStderr);
+    return runCodeLocallyOrPiston(lang, code, stdin, onStdout, onStderr);
   }
 
   try {
     return await runCodeViaDocker(lang, code, stdin, onStdout, onStderr);
   } catch (err: any) {
-    console.warn(`[DockerRunner] Docker execution failed (${err.message}). Falling back to local process runner...`);
-    return runCodeLocally(lang, code, stdin, onStdout, onStderr);
+    console.warn(`[DockerRunner] Docker execution failed (${err.message}). Falling back to process/cloud runner...`);
+    return runCodeLocallyOrPiston(lang, code, stdin, onStdout, onStderr);
   }
+}
+
+async function runCodeLocallyOrPiston(
+  lang: LanguageConfig,
+  code: string,
+  stdin: string,
+  onStdout?: (chunk: string) => void,
+  onStderr?: (chunk: string) => void
+): Promise<ExecutionResult> {
+  // If language typically requires installed compilers not on cloud hosting (Java, PHP, C++, Go, Rust, Ruby),
+  // try Piston first for instantaneous execution
+  const cloudLanguages = ['java', 'php', 'cpp', 'c', 'go', 'rust', 'ruby'];
+  if (cloudLanguages.includes(lang.id)) {
+    const pistonRes = await runCodeViaPiston(lang, code, stdin, onStdout, onStderr);
+    if (pistonRes) return pistonRes;
+  }
+
+  // Otherwise run locally
+  const localRes = await runCodeLocally(lang, code, stdin, onStdout, onStderr);
+
+  // If local execution failed due to binary missing (e.g. exit code 127 or not found), fallback to Piston
+  if (localRes.exitCode === 127 || localRes.stderr.includes('not found')) {
+    const pistonFallback = await runCodeViaPiston(lang, code, stdin, onStdout, onStderr);
+    if (pistonFallback) return pistonFallback;
+  }
+
+  return localRes;
 }
 
 async function runCodeLocally(
