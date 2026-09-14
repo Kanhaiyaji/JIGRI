@@ -241,31 +241,21 @@ export default function Notebook() {
     }
   };
 
-  const addCodeCell = () => {
+  const insertCellAt = (index: number, type: 'code' | 'markdown') => {
     const newCell: ICell = {
       id: uuidv4(),
-      type: 'code',
-      source: '',
+      type,
+      source: type === 'code' ? '' : '## Section Title\n\nWrite your markdown notes and documentation here.',
       outputs: [],
       executionCount: null,
       isRunning: false,
     };
-    dispatch(addCell({ index: notebook?.cells.length ?? 0, cell: newCell }));
+    dispatch(addCell({ index, cell: newCell }));
     triggerAutoSave();
   };
 
-  const addMarkdownCell = () => {
-    const newCell: ICell = {
-      id: uuidv4(),
-      type: 'markdown',
-      source: '## Section Title\n\nWrite your markdown notes and documentation here.',
-      outputs: [],
-      executionCount: null,
-      isRunning: false,
-    };
-    dispatch(addCell({ index: notebook?.cells.length ?? 0, cell: newCell }));
-    triggerAutoSave();
-  };
+  const addCodeCell = () => insertCellAt(notebook?.cells.length ?? 0, 'code');
+  const addMarkdownCell = () => insertCellAt(notebook?.cells.length ?? 0, 'markdown');
 
   // Upload and parse .ipynb file
   const handleUploadIpynb = (file: File) => {
@@ -408,64 +398,146 @@ export default function Notebook() {
       )}
 
       {/* Cells List */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-4 pb-32">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6">
+        <div className="max-w-4xl xl:max-w-5xl mx-auto space-y-6 pb-32">
+          {/* Empty state when notebook has no cells */}
+          {notebook.cells.length === 0 && (
+            <div className="text-center py-16 px-6 border-2 border-dashed border-dark-border/60 rounded-2xl bg-dark-card/20">
+              <Code2 className="w-10 h-10 text-brand-400/60 mx-auto mb-3" />
+              <h3 className="text-base font-medium text-white mb-1">Notebook is empty</h3>
+              <p className="text-xs text-gray-400 max-w-sm mx-auto mb-5">
+                Add a code cell to start writing Python, or a text cell for notes and documentation.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={addCodeCell}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-xs font-semibold transition-all shadow-sm active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Code Cell
+                </button>
+                <button
+                  onClick={addMarkdownCell}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-dark-card hover:bg-dark-hover border border-dark-border text-gray-300 hover:text-white rounded-xl text-xs font-semibold transition-all active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5 text-purple-400" />
+                  Add Text Cell
+                </button>
+              </div>
+            </div>
+          )}
+
           {notebook.cells.map((cell, index) => (
-            <Cell
-              key={cell.id}
-              cell={cell}
-              index={index}
-              onRun={() => handleRunCell(cell)}
-              onUpdate={(source) => {
-                dispatch(updateCell({ id: cell.id, source }));
-                triggerAutoSave();
-              }}
-              onRemove={() => {
-                dispatch(removeCell(cell.id));
-                triggerAutoSave();
-              }}
-            />
+            <React.Fragment key={cell.id}>
+              {/* In-between cell insertion divider on hover */}
+              <div className="group/insert relative h-6 -my-3 flex items-center justify-center z-10">
+                <div className="absolute inset-x-0 h-px bg-transparent group-hover/insert:bg-brand-500/40 transition-colors" />
+                <div className="relative opacity-0 group-hover/insert:opacity-100 flex items-center gap-1 bg-dark-card/95 px-2.5 py-1 rounded-full border border-dark-border shadow-lg shadow-black/40 transition-all scale-90 group-hover/insert:scale-100">
+                  <button
+                    onClick={() => insertCellAt(index, 'code')}
+                    title="Insert Code Cell above"
+                    className="flex items-center gap-1 text-[11px] font-semibold text-gray-300 hover:text-white px-2 py-0.5 rounded-md hover:bg-brand-500/20 transition-all"
+                  >
+                    <Plus className="w-3 h-3 text-brand-400" />
+                    <span>Code</span>
+                  </button>
+                  <span className="text-dark-border text-xs">|</span>
+                  <button
+                    onClick={() => insertCellAt(index, 'markdown')}
+                    title="Insert Text Cell above"
+                    className="flex items-center gap-1 text-[11px] font-semibold text-gray-300 hover:text-white px-2 py-0.5 rounded-md hover:bg-purple-500/20 transition-all"
+                  >
+                    <Plus className="w-3 h-3 text-purple-400" />
+                    <span>Text</span>
+                  </button>
+                </div>
+              </div>
+
+              <Cell
+                cell={cell}
+                index={index}
+                onRun={() => handleRunCell(cell)}
+                onUpdate={(source) => {
+                  dispatch(updateCell({ id: cell.id, source }));
+                  triggerAutoSave();
+                }}
+                onRemove={() => {
+                  dispatch(removeCell(cell.id));
+                  triggerAutoSave();
+                }}
+              />
+            </React.Fragment>
           ))}
 
-          {/* Add cell & Upload buttons */}
-          <div className="flex items-center gap-3 pt-6 border-t border-dark-border/40 flex-wrap">
-            <button
-              id="add-code-cell-btn"
-              onClick={addCodeCell}
-              className="flex items-center gap-2 px-4 py-2 bg-dark-card border border-dark-border hover:border-brand-500/50 hover:bg-dark-hover rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all shadow-sm"
-            >
-              <Code2 className="w-3.5 h-3.5 text-brand-400" />
-              Add Code Cell
-            </button>
-            <button
-              id="add-markdown-cell-btn"
-              onClick={addMarkdownCell}
-              className="flex items-center gap-2 px-4 py-2 bg-dark-card border border-dark-border hover:border-purple-500/50 hover:bg-dark-hover rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all shadow-sm"
-            >
-              <Type className="w-3.5 h-3.5 text-purple-400" />
-              Add Text Cell
-            </button>
+          {/* Post-last cell insert divider */}
+          {notebook.cells.length > 0 && (
+            <div className="group/insert relative h-6 -my-3 flex items-center justify-center z-10">
+              <div className="absolute inset-x-0 h-px bg-transparent group-hover/insert:bg-brand-500/40 transition-colors" />
+              <div className="relative opacity-0 group-hover/insert:opacity-100 flex items-center gap-1 bg-dark-card/95 px-2.5 py-1 rounded-full border border-dark-border shadow-lg shadow-black/40 transition-all scale-90 group-hover/insert:scale-100">
+                <button
+                  onClick={() => insertCellAt(notebook.cells.length, 'code')}
+                  title="Insert Code Cell at end"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-gray-300 hover:text-white px-2 py-0.5 rounded-md hover:bg-brand-500/20 transition-all"
+                >
+                  <Plus className="w-3 h-3 text-brand-400" />
+                  <span>Code</span>
+                </button>
+                <span className="text-dark-border text-xs">|</span>
+                <button
+                  onClick={() => insertCellAt(notebook.cells.length, 'markdown')}
+                  title="Insert Text Cell at end"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-gray-300 hover:text-white px-2 py-0.5 rounded-md hover:bg-purple-500/20 transition-all"
+                >
+                  <Plus className="w-3 h-3 text-purple-400" />
+                  <span>Text</span>
+                </button>
+              </div>
+            </div>
+          )}
 
-            <input
-              ref={bottomFileInputRef}
-              type="file"
-              accept=".ipynb,application/x-ipynb+json,application/json"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleUploadIpynb(file);
-                e.target.value = '';
-              }}
-              className="hidden"
-            />
+          {/* Add cell & Upload buttons toolbar */}
+          <div className="flex items-center justify-between pt-6 border-t border-dark-border/40 flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <button
+                id="add-code-cell-btn"
+                onClick={addCodeCell}
+                className="flex items-center gap-2 px-4 py-2 bg-dark-card border border-dark-border hover:border-brand-500/50 hover:bg-dark-hover rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all shadow-sm active:scale-95"
+              >
+                <Code2 className="w-3.5 h-3.5 text-brand-400" />
+                Add Code Cell
+              </button>
+              <button
+                id="add-markdown-cell-btn"
+                onClick={addMarkdownCell}
+                className="flex items-center gap-2 px-4 py-2 bg-dark-card border border-dark-border hover:border-purple-500/50 hover:bg-dark-hover rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all shadow-sm active:scale-95"
+              >
+                <Type className="w-3.5 h-3.5 text-purple-400" />
+                Add Text Cell
+              </button>
+            </div>
 
-            <button
-              id="bottom-upload-ipynb-btn"
-              onClick={() => bottomFileInputRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2 bg-dark-card border border-dark-border hover:border-cyan-500/50 hover:bg-dark-hover rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all shadow-sm"
-            >
-              <Upload className="w-3.5 h-3.5 text-cyan-400" />
-              Upload .ipynb
-            </button>
+            <div className="flex items-center gap-2">
+              <input
+                ref={bottomFileInputRef}
+                type="file"
+                accept=".ipynb,application/x-ipynb+json,application/json"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadIpynb(file);
+                  e.target.value = '';
+                }}
+                className="hidden"
+              />
+
+              <button
+                id="bottom-upload-ipynb-btn"
+                onClick={() => bottomFileInputRef.current?.click()}
+                className="flex items-center gap-2 px-3.5 py-2 bg-dark-card border border-dark-border hover:border-cyan-500/50 hover:bg-dark-hover rounded-xl text-xs font-semibold text-gray-300 hover:text-white transition-all shadow-sm active:scale-95"
+              >
+                <Upload className="w-3.5 h-3.5 text-cyan-400" />
+                Upload .ipynb
+              </button>
+            </div>
           </div>
         </div>
       </div>
