@@ -241,31 +241,21 @@ export default function Notebook() {
     }
   };
 
-  const addCodeCell = () => {
+  const insertCellAt = (index: number, type: 'code' | 'markdown') => {
     const newCell: ICell = {
       id: uuidv4(),
-      type: 'code',
-      source: '',
+      type,
+      source: type === 'code' ? '' : '## Section Title\n\nWrite your markdown notes and documentation here.',
       outputs: [],
       executionCount: null,
       isRunning: false,
     };
-    dispatch(addCell({ index: notebook?.cells.length ?? 0, cell: newCell }));
+    dispatch(addCell({ index, cell: newCell }));
     triggerAutoSave();
   };
 
-  const addMarkdownCell = () => {
-    const newCell: ICell = {
-      id: uuidv4(),
-      type: 'markdown',
-      source: '## Section Title\n\nWrite your markdown notes and documentation here.',
-      outputs: [],
-      executionCount: null,
-      isRunning: false,
-    };
-    dispatch(addCell({ index: notebook?.cells.length ?? 0, cell: newCell }));
-    triggerAutoSave();
-  };
+  const addCodeCell = () => insertCellAt(notebook?.cells.length ?? 0, 'code');
+  const addMarkdownCell = () => insertCellAt(notebook?.cells.length ?? 0, 'markdown');
 
   // Upload and parse .ipynb file
   const handleUploadIpynb = (file: File) => {
@@ -409,22 +399,45 @@ export default function Notebook() {
 
       {/* Cells List */}
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-4 pb-32">
+        <div className="max-w-4xl mx-auto space-y-6 pb-32">
           {notebook.cells.map((cell, index) => (
-            <Cell
-              key={cell.id}
-              cell={cell}
-              index={index}
-              onRun={() => handleRunCell(cell)}
-              onUpdate={(source) => {
-                dispatch(updateCell({ id: cell.id, source }));
-                triggerAutoSave();
-              }}
-              onRemove={() => {
-                dispatch(removeCell(cell.id));
-                triggerAutoSave();
-              }}
-            />
+            <React.Fragment key={cell.id}>
+              {/* In-between cell insertion divider on hover */}
+              <div className="group/insert relative h-4 -my-2 flex items-center justify-center">
+                <div className="absolute inset-x-0 h-px bg-transparent group-hover/insert:bg-brand-500/30 transition-colors" />
+                <div className="relative z-10 opacity-0 group-hover/insert:opacity-100 flex items-center gap-1.5 bg-dark-card px-2.5 py-0.5 rounded-full border border-dark-border/80 shadow-md transition-all scale-95 group-hover/insert:scale-100">
+                  <button
+                    onClick={() => insertCellAt(index, 'code')}
+                    className="flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-brand-300 px-2 py-0.5 rounded hover:bg-brand-500/15 transition-colors"
+                  >
+                    <Plus className="w-3 h-3 text-brand-400" />
+                    Code
+                  </button>
+                  <span className="text-dark-border text-xs">|</span>
+                  <button
+                    onClick={() => insertCellAt(index, 'markdown')}
+                    className="flex items-center gap-1 text-[11px] font-medium text-gray-400 hover:text-purple-300 px-2 py-0.5 rounded hover:bg-purple-500/15 transition-colors"
+                  >
+                    <Plus className="w-3 h-3 text-purple-400" />
+                    Text
+                  </button>
+                </div>
+              </div>
+
+              <Cell
+                cell={cell}
+                index={index}
+                onRun={() => handleRunCell(cell)}
+                onUpdate={(source) => {
+                  dispatch(updateCell({ id: cell.id, source }));
+                  triggerAutoSave();
+                }}
+                onRemove={() => {
+                  dispatch(removeCell(cell.id));
+                  triggerAutoSave();
+                }}
+              />
+            </React.Fragment>
           ))}
 
           {/* Add cell & Upload buttons */}

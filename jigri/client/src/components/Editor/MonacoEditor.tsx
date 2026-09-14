@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 
@@ -37,7 +37,7 @@ export default function MonacoEditor({
         });
       }
 
-      // Auto-resize for 'auto' height
+      // Initial auto-resize if 'auto'
       if (height === 'auto') {
         const updateHeight = () => {
           const contentHeight = Math.max(minHeight, ed.getContentHeight());
@@ -53,6 +53,26 @@ export default function MonacoEditor({
     },
     [onRun, height, minHeight]
   );
+
+  // Dynamically update height and layout when height prop changes (e.g. user drag resize)
+  useEffect(() => {
+    if (!editorRef.current) return;
+    const ed = editorRef.current;
+    const domNode = ed.getDomNode();
+
+    if (height === 'auto') {
+      const contentHeight = Math.max(minHeight, ed.getContentHeight());
+      if (domNode) {
+        domNode.style.height = `${contentHeight}px`;
+      }
+      ed.layout();
+    } else {
+      if (domNode) {
+        domNode.style.height = typeof height === 'number' ? `${height}px` : height;
+      }
+      ed.layout();
+    }
+  }, [height, minHeight]);
 
   const editorHeight = height === 'auto' ? minHeight : height;
 

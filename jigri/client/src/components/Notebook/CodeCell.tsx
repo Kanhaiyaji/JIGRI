@@ -22,6 +22,35 @@ export default function CodeCell({ cell, index, onRun, onUpdate, onRemove }: Pro
   const startYRef = useRef(0);
   const startHeightRef = useRef(0);
 
+  const [editorHeight, setEditorHeight] = useState<number | null>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const isResizingEditor = useRef(false);
+  const editorStartYRef = useRef(0);
+  const editorStartHeightRef = useRef(0);
+
+  const handleMouseDownResizeEditor = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingEditor.current = true;
+    editorStartYRef.current = e.clientY;
+    editorStartHeightRef.current = editorContainerRef.current?.offsetHeight || 96;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isResizingEditor.current) return;
+      const deltaY = moveEvent.clientY - editorStartYRef.current;
+      const newHeight = Math.max(70, editorStartHeightRef.current + deltaY);
+      setEditorHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      isResizingEditor.current = false;
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
   const handleCopy = () => {
     const text = cell.outputs.map((o) => o.data).join('\n');
     navigator.clipboard.writeText(text);
@@ -111,15 +140,24 @@ export default function CodeCell({ cell, index, onRun, onUpdate, onRemove }: Pro
       </div>
 
       {/* Editor */}
-      <div className="relative">
+      <div ref={editorContainerRef} className="relative">
         <MonacoEditor
           value={cell.source}
           language="python"
           onChange={onUpdate}
-          height="auto"
+          height={editorHeight ?? 'auto'}
           minHeight={96}
           onRun={onRun}
         />
+        {/* Editor Vertical Drag Handle */}
+        <div
+          onMouseDown={handleMouseDownResizeEditor}
+          onDoubleClick={() => setEditorHeight(null)}
+          title="Drag to resize code editor height (Double-click to reset)"
+          className="h-2 w-full bg-[#11141e] hover:bg-brand-500/20 border-t border-dark-border/40 cursor-row-resize flex items-center justify-center transition-colors group/resize"
+        >
+          <GripHorizontal className="w-4 h-3 text-gray-600 group-hover/resize:text-brand-400 transition-colors" />
+        </div>
       </div>
 
       {/* Output Section */}
